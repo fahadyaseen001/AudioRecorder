@@ -132,6 +132,7 @@ const MemoItem = ({ memo }: { memo: Memo }) => {
         <View style={styles.wave}>
           {lines.map((db, index) => (
             <View
+              key={index}
               style={[
                 styles.waveLine,
                 {
