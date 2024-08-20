@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { AVPlaybackStatus, Audio } from 'expo-av'
 import { Sound } from 'expo-av/build/Audio'
 import Animated, {
-  Extrapolate,
+  Extrapolation,
   interpolate,
   useAnimatedStyle,
   withTiming,
@@ -119,6 +119,19 @@ const MemoItem = ({ memo }: { memo: Memo }) => {
     lines.push(average)
   }
 
+  // Fix the wave line height NaN issue
+  const waveLineHeight = (db: number) => {
+    const height = interpolate(
+      db,
+      [-60, 0],
+      [5, 50],
+      Extrapolation.CLAMP
+    )
+    return isNaN(height) ? 5 : height
+  }
+
+  const isValidLine = (db: any) => typeof db === 'number' && !isNaN(db)
+
   return (
     <View style={styles.container}>
       <FontAwesome5
@@ -136,7 +149,7 @@ const MemoItem = ({ memo }: { memo: Memo }) => {
               style={[
                 styles.waveLine,
                 {
-                  height: interpolate(db, [-60, 0], [5, 50], Extrapolate.CLAMP),
+                  height: isValidLine(db) ? waveLineHeight(db) : 5,
                   backgroundColor:
                     progress > index / lines.length ? 'royalblue' : 'gainsboro',
                 },
