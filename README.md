@@ -53,19 +53,19 @@ The app requires permissions to access the device’s microphone. When you run t
 
 In development, this is handled automatically by Expo. However, for production, make sure you configure app permissions in app.json:
 
-```{
+```
+{
   "expo": {
-    "name": "Audio Recorder App",
-    "slug": "audio-recorder-app",
-    "version": "1.0.0",
     "ios": {
       "infoPlist": {
-        "NSMicrophoneUsageDescription": "This app needs access to the microphone to record audio."
+        "NSMicrophoneUsageDescription": "$(PRODUCT_NAME) needs access to your Microphone."
       }
     },
     "android": {
-      "permissions": ["RECORD_AUDIO"]
-    }
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
+    },
   }
 }
 ```
