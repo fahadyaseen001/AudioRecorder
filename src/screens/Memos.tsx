@@ -4,6 +4,7 @@ import {
   StyleSheet,
   FlatList,
   Pressable,
+  Alert,
 } from 'react-native'
 import { Audio } from 'expo-av'
 import { Recording } from 'expo-av/build/Audio'
@@ -14,15 +15,50 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated'
 import MemoItem, { Memo } from '../components/MemoItem'
+import { HUGGING_FACE_API_KEY } from '@env'
+import Loader from '../components/Loader'
+
+type MemoWithTranscript = Memo & { transcript?: string };
+
 
 /**
  * Audio recorder home screen
  */
 export default function MemosScreen() {
   const [recording, setRecording] = useState<Recording>()
-  const [memos, setMemos] = useState<Memo[]>([])
   const [audioMetering, setAudioMetering] = useState<number[]>([])
   const metering = useSharedValue(-100)
+  const [memos, setMemos] = useState<MemoWithTranscript[]>([]);
+  const [isTranscribing, setIsTranscribing] = useState(false)
+
+
+  /**
+ * Transcribe audio using Hugging Face API
+ */
+
+  const apiKey = HUGGING_FACE_API_KEY;
+  const modelURL = "https://router.huggingface.co/hf-inference/models/openai/whisper-large-v3-turbo";
+
+  const transcribeAudio = async (audioData: Blob) => {
+    try {
+      const response = await fetch(modelURL, {
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'audio/wav' // Ensure this matches your audio format
+        },
+        method: 'POST',
+        body: audioData
+      });
+
+      const result = await response.json();
+      return result.text; //  API response  
+    } catch (error) {
+      console.error('Transcription error:', error);
+      Alert.alert('Error', 'Failed to transcribe audio. Please try again.');
+      return null;
+    }
+  };
+  
 
   /**
    * Start recording
@@ -59,25 +95,33 @@ export default function MemosScreen() {
    * Stop recording and save the memo
    */
   const stopRecording = useCallback(async () => {
-    if (!recording) {
-      return
-    }
+    if (!recording) return;
 
-    setRecording(undefined)
-    await recording.stopAndUnloadAsync()
+    setRecording(undefined);
+    await recording.stopAndUnloadAsync();
     await Audio.setAudioModeAsync({
       allowsRecordingIOS: false,
-    })
-    const uri = recording.getURI()
-    // Reset metering to cancel the wave animation
-    metering.value = -100
+    });
+    const uri = recording.getURI();
+    metering.value = -100;
+
     if (uri) {
-      setMemos((existingMemos) => [
-        { uri, metering: audioMetering },
-        ...existingMemos,
-      ])
+      setIsTranscribing(true);
+      try {
+        const audioBlob = await fetch(uri).then(response => response.blob());
+        const transcript = await transcribeAudio(audioBlob);
+        
+        setMemos((existingMemos) => [
+          { uri, metering: audioMetering, transcript },
+          ...existingMemos,
+        ]);
+      } catch (error) {
+        Alert.alert('Error', 'Failed to transcribe audio. Please try again.');
+      } finally {
+        setIsTranscribing(false);
+      }
     }
-  }, [recording, audioMetering])
+  }, [recording, audioMetering]);
 
   /**
    * Red circle animation
@@ -110,6 +154,7 @@ export default function MemosScreen() {
 
   return (
     <View style={styles.container}>
+      {isTranscribing && <Loader />}
       <FlatList
         data={memos}
         renderItem={({ item, index }) => <MemoItem key={index} memo={item} />}

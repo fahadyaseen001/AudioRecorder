@@ -13,6 +13,7 @@ import Animated, {
 export type Memo = {
   uri: string // audio file uri
   metering: number[] // dB array
+  transcript?: string
 }
 
 /**
@@ -134,43 +135,46 @@ const MemoItem = ({ memo }: { memo: Memo }) => {
 
   return (
     <View style={styles.container}>
-      <FontAwesome5
-        onPress={playSound}
-        name={isPlaying ? 'pause' : 'play'}
-        size={20}
-        color={'gray'}
-      />
+      <View style={[styles.audioSection, { borderBottomWidth: memo?.transcript ? StyleSheet.hairlineWidth : 0 }]}>
+        <FontAwesome5
+          onPress={playSound}
+          name={isPlaying ? 'pause' : 'play'}
+          size={20}
+          color={'gray'}
+        />
 
-      <View style={styles.playbackContainer}>
-        <View style={styles.wave}>
-          {lines.map((db, index) => (
-            <View
-              key={index}
-              style={[
-                styles.waveLine,
-                {
-                  height: isValidLine(db) ? waveLineHeight(db) : 5,
-                  backgroundColor:
-                    progress > index / lines.length ? 'royalblue' : 'gainsboro',
-                },
-              ]}
-            />
-          ))}
+        <View style={styles.playbackContainer}>
+          <View style={styles.wave}>
+            {lines.map((db, index) => (
+              <View
+                key={index}
+                style={[
+                  styles.waveLine,
+                  {
+                    height: isValidLine(db) ? waveLineHeight(db) : 5,
+                    backgroundColor:
+                      progress > index / lines.length ? 'royalblue' : 'gainsboro',
+                  },
+                ]}
+              />
+            ))}
+          </View>
+
+          <Text style={styles.duration}>
+            {formatMillis(position || 0)} / {formatMillis(duration || 0)}
+          </Text>
         </View>
-
-        <Text
-          style={{
-            position: 'absolute',
-            right: 0,
-            bottom: 0,
-            color: 'gray',
-            fontFamily: 'Inter',
-            fontSize: 12,
-          }}
-        >
-          {formatMillis(position || 0)} / {formatMillis(duration || 0)}
-        </Text>
       </View>
+
+      {memo.transcript && (
+        <View style={styles.transcriptContainer}>
+          <View style={styles.transcriptHeader}>
+            <FontAwesome5 name="file-alt" size={14} color="gray" />
+            <Text style={styles.transcriptTitle}>Transcript</Text>
+          </View>
+          <Text style={styles.transcriptText}>{memo.transcript}</Text>
+        </View>
+      )}
     </View>
   )
 }
@@ -178,41 +182,30 @@ const MemoItem = ({ memo }: { memo: Memo }) => {
 const styles = StyleSheet.create({
   container: {
     backgroundColor: 'white',
-    margin: 5,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 15,
-    paddingVertical: 5,
-    borderRadius: 10,
-    gap: 15,
-
-    // shadow
+    margin: 10,
+    borderRadius: 12,
+    overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
-      height: 1,
+      height: 2,
     },
-    shadowOpacity: 0.22,
-    shadowRadius: 2.22,
-
-    elevation: 3,
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  audioSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 15,
+    paddingVertical: 12,
+    gap: 15,
+    borderBottomColor: '#E5E5E5',
   },
   playbackContainer: {
     flex: 1,
     height: 80,
     justifyContent: 'center',
-  },
-  playbackBackground: {
-    height: 3,
-    backgroundColor: 'gainsboro',
-    borderRadius: 5,
-  },
-  playbackIndicator: {
-    width: 10,
-    aspectRatio: 1,
-    borderRadius: 10,
-    backgroundColor: 'royalblue',
-    position: 'absolute',
   },
   wave: {
     flexDirection: 'row',
@@ -221,9 +214,38 @@ const styles = StyleSheet.create({
   },
   waveLine: {
     flex: 1,
-    height: 30,
     backgroundColor: 'gainsboro',
     borderRadius: 20,
+  },
+  duration: {
+    position: 'absolute',
+    right: 0,
+    bottom: 0,
+    color: 'gray',
+    fontFamily: 'Inter',
+    fontSize: 12,
+  },
+  transcriptContainer: {
+    padding: 15,
+    backgroundColor: '#F8F9FA',
+  },
+  transcriptHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
+  transcriptTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#666',
+  },
+  transcriptText: {
+    fontSize: 15,
+    lineHeight: 22,
+    color: '#2C3E50',
+    fontFamily: 'Inter',
+    
   },
 })
 
