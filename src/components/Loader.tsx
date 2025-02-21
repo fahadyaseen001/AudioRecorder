@@ -1,28 +1,28 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import Animated, { 
-  useAnimatedStyle, 
-  withRepeat, 
-  withTiming, 
-  useSharedValue, 
+import Animated, {
+  useAnimatedStyle,
+  withRepeat,
+  withTiming,
+  useSharedValue,
   withSequence,
-  Easing
+  Easing,
 } from 'react-native-reanimated';
 
 const Loader = () => {
   const rotation = useSharedValue(0);
-  
+
   React.useEffect(() => {
     rotation.value = withRepeat(
       withSequence(
         withTiming(360, {
           duration: 1000,
-          easing: Easing.linear
+          easing: Easing.linear,
         })
       ),
       -1
     );
-  }, []);
+  }, [rotation]);
 
   const spinnerStyle = useAnimatedStyle(() => {
     return {
@@ -33,7 +33,9 @@ const Loader = () => {
   return (
     <View style={styles.container}>
       <Animated.View style={[styles.spinner, spinnerStyle]} />
-      <Text style={styles.text}>Audio is being transcribed, please wait...</Text>
+      <Text style={styles.text}>
+        Audio is being transcribed, please wait...
+      </Text>
     </View>
   );
 };

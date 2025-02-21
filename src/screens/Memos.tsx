@@ -1,99 +1,81 @@
-import { useCallback, useState } from 'react'
-import {
-  View,
-  StyleSheet,
-  FlatList,
-  Pressable,
-  Alert,
-} from 'react-native'
-import { Audio } from 'expo-av'
-import { Recording } from 'expo-av/build/Audio'
+import { HUGGING_FACE_API_KEY } from '@env';
+import { Audio } from 'expo-av';
+import { Recording } from 'expo-av/build/Audio';
+import { useCallback, useState } from 'react';
+import { View, StyleSheet, FlatList, Pressable, Alert } from 'react-native';
 import Animated, {
   interpolate,
   useAnimatedStyle,
   useSharedValue,
   withTiming,
-} from 'react-native-reanimated'
-import MemoItem, { Memo } from '../components/MemoItem'
-import { HUGGING_FACE_API_KEY } from '@env'
-import Loader from '../components/Loader'
+} from 'react-native-reanimated';
+
+import Loader from '../components/Loader';
+import MemoItem, { Memo } from '../components/MemoItem';
 
 type MemoWithTranscript = Memo & { transcript?: string };
 
-
-/**
- * Audio recorder home screen
- */
 export default function MemosScreen() {
-  const [recording, setRecording] = useState<Recording>()
-  const [audioMetering, setAudioMetering] = useState<number[]>([])
-  const metering = useSharedValue(-100)
+  const [recording, setRecording] = useState<Recording>();
+  const [audioMetering, setAudioMetering] = useState<number[]>([]);
+  const metering = useSharedValue(-100);
   const [memos, setMemos] = useState<MemoWithTranscript[]>([]);
-  const [isTranscribing, setIsTranscribing] = useState(false)
+  const [isTranscribing, setIsTranscribing] = useState(false);
 
+  const transcribeAudio = useCallback(async (audioData: Blob) => {
+    const apiKey = HUGGING_FACE_API_KEY;
+    const modelURL =
+      'https://router.huggingface.co/hf-inference/models/openai/whisper-large-v3-turbo';
 
-  /**
- * Transcribe audio using Hugging Face API
- */
-
-  const apiKey = HUGGING_FACE_API_KEY;
-  const modelURL = "https://router.huggingface.co/hf-inference/models/openai/whisper-large-v3-turbo";
-
-  const transcribeAudio = async (audioData: Blob) => {
     try {
       const response = await fetch(modelURL, {
         headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'audio/wav' // Ensure this matches your audio format
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'audio/wav',
         },
         method: 'POST',
-        body: audioData
+        body: audioData,
       });
 
       const result = await response.json();
-      return result.text; //  API response  
+      return result.text;
     } catch (error) {
       console.error('Transcription error:', error);
       Alert.alert('Error', 'Failed to transcribe audio. Please try again.');
       return null;
     }
-  };
-  
+  }, []);
 
-  /**
-   * Start recording
-   */
   const startRecording = useCallback(async () => {
     try {
-      setAudioMetering([])
+      setAudioMetering([]);
 
-      await Audio.requestPermissionsAsync()
+      await Audio.requestPermissionsAsync();
       await Audio.setAudioModeAsync({
         allowsRecordingIOS: true,
         playsInSilentModeIOS: true,
-      })
+        staysActiveInBackground: true, // Add this if you want background audio
+        playThroughEarpieceAndroid: false, // Add this for Android
+      });
 
       const { recording } = await Audio.Recording.createAsync(
         Audio.RecordingOptionsPresets.HIGH_QUALITY,
         undefined,
         100
-      )
-      setRecording(recording)
+      );
+      setRecording(recording);
 
       recording.setOnRecordingStatusUpdate((status) => {
         if (status.metering) {
-          metering.value = status.metering
-          setAudioMetering((curVal) => [...curVal, status.metering || -100])
+          metering.value = status.metering;
+          setAudioMetering((curVal) => [...curVal, status.metering ?? -100]);
         }
-      })
+      });
     } catch (err) {
-      console.error('Failed to start recording', err)
+      console.error('Failed to start recording', err);
     }
-  }, [])
+  }, [metering]);
 
-  /**
-   * Stop recording and save the memo
-   */
   const stopRecording = useCallback(async () => {
     if (!recording) return;
 
@@ -108,20 +90,21 @@ export default function MemosScreen() {
     if (uri) {
       setIsTranscribing(true);
       try {
-        const audioBlob = await fetch(uri).then(response => response.blob());
+        const audioBlob = await fetch(uri).then((response) => response.blob());
         const transcript = await transcribeAudio(audioBlob);
-        
+
         setMemos((existingMemos) => [
           { uri, metering: audioMetering, transcript },
           ...existingMemos,
         ]);
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
       } catch (error) {
         Alert.alert('Error', 'Failed to transcribe audio. Please try again.');
       } finally {
         setIsTranscribing(false);
       }
     }
-  }, [recording, audioMetering]);
+  }, [recording, audioMetering, metering, transcribeAudio]);
 
   /**
    * Red circle animation
@@ -129,7 +112,7 @@ export default function MemosScreen() {
   const animatedRedCircle = useAnimatedStyle(() => ({
     width: withTiming(recording ? '60%' : '100%'),
     borderRadius: withTiming(recording ? 5 : 35),
-  }))
+  }));
 
   /**
    * Recording wave animation
@@ -138,7 +121,7 @@ export default function MemosScreen() {
     const size = withTiming(
       interpolate(metering.value, [-160, -60, 0], [0, 0, -30]),
       { duration: 100 }
-    )
+    );
     return {
       top: size,
       bottom: size,
@@ -149,8 +132,8 @@ export default function MemosScreen() {
         [-160, -60, -10],
         [0.7, 0.3, 0.7]
       )})`,
-    }
-  })
+    };
+  });
 
   return (
     <View style={styles.container}>
@@ -172,7 +155,7 @@ export default function MemosScreen() {
         </View>
       </View>
     </View>
-  )
+  );
 }
 
 /**
@@ -213,4 +196,4 @@ const styles = StyleSheet.create({
     backgroundColor: 'orangered',
     aspectRatio: 1,
   },
-})
+});

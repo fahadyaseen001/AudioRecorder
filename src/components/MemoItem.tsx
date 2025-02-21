@@ -1,148 +1,145 @@
-import { View, Text, StyleSheet } from 'react-native'
-import { FontAwesome5 } from '@expo/vector-icons'
-import { useState, useEffect, useCallback } from 'react'
-import { AVPlaybackStatus, Audio } from 'expo-av'
-import { Sound } from 'expo-av/build/Audio'
-import Animated, {
-  Extrapolation,
-  interpolate,
-  useAnimatedStyle,
-  withTiming,
-} from 'react-native-reanimated'
+import { FontAwesome5 } from '@expo/vector-icons';
+import { Audio, AVPlaybackStatus } from 'expo-av';
+import { Sound } from 'expo-av/build/Audio';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
+import { interpolate, Extrapolation } from 'react-native-reanimated';
 
 export type Memo = {
-  uri: string // audio file uri
-  metering: number[] // dB array
-  transcript?: string
-}
+  uri: string;
+  metering: number[];
+  transcript?: string;
+};
 
-/**
- * Component to display an audio record item
- */
 const MemoItem = ({ memo }: { memo: Memo }) => {
-  const [sound, setSound] = useState<Sound>()
-  const [status, setStatus] = useState<AVPlaybackStatus>()
+  const [, setSound] = useState<Sound>();
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [position, setPosition] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [showTranscript, setShowTranscript] = useState(false);
+  const soundRef = useRef<Sound>();
 
-  /**
-   * Load the audio file
-   */
-  async function loadSound() {
-    const { sound } = await Audio.Sound.createAsync(
-      { uri: memo.uri },
-      { progressUpdateIntervalMillis: 1000 / 60 },
-      onPlaybackStatusUpdate
-    )
-    setSound(sound)
-  }
-
-  /**
-   * Callback to update the playback status
-   */
   const onPlaybackStatusUpdate = useCallback(
-    async (newStatus: AVPlaybackStatus) => {
-      setStatus(newStatus)
-
-      if (!newStatus.isLoaded || !sound) {
-        return
-      }
-
-      if (newStatus.didJustFinish) {
-        await sound?.setPositionAsync(0)
+    async (status: AVPlaybackStatus) => {
+      if (!status.isLoaded) return;
+      setIsPlaying(status.isPlaying);
+      setPosition(status.positionMillis);
+      setDuration(status.durationMillis ?? 0);
+      if (status.didJustFinish) {
+        setIsPlaying(false);
+        try {
+          await soundRef.current?.setPositionAsync(0);
+        } catch (error) {
+          console.error('Error resetting position:', error);
+        }
       }
     },
-    [sound]
-  )
+    []
+  );
 
   useEffect(() => {
-    loadSound()
-  }, [memo])
-
-  /**
-   * Play or pause the audio
-   */
-  const playSound = useCallback(async () => {
-    if (!sound) {
-      return
-    }
-    if (status?.isLoaded && status.isPlaying) {
-      await sound.pauseAsync()
-    } else {
-      await sound.replayAsync()
-    }
-  }, [sound, status])
-
-  useEffect(() => {
-    return sound
-      ? () => {
-          sound.unloadAsync()
+    let isMounted = true;
+    const loadSound = async () => {
+      try {
+        if (soundRef.current) {
+          await soundRef.current.unloadAsync();
         }
-      : undefined
-  }, [sound])
+        const { sound: newSound } = await Audio.Sound.createAsync(
+          { uri: memo.uri },
+          { progressUpdateIntervalMillis: 100 },
+          onPlaybackStatusUpdate
+        );
+        if (!isMounted) {
+          await newSound.unloadAsync();
+          return;
+        }
+        soundRef.current = newSound;
+        setSound(newSound);
+        const status = await newSound.getStatusAsync();
+        if (status.isLoaded && isMounted) {
+          setDuration(status.durationMillis ?? 0);
+        }
+      } catch (error) {
+        console.error('Error loading sound:', error);
+      }
+    };
+    loadSound().catch((error) => {
+      console.error('Error in loadSound:', error);
+    });
+    return () => {
+      isMounted = false;
+      if (soundRef.current) {
+        soundRef.current.unloadAsync().catch((error) => {
+          console.error('Error unloading sound:', error);
+        });
+      }
+    };
+  }, [memo.uri, onPlaybackStatusUpdate]);
 
-  /**
-   * Format milliseconds to minutes:seconds
-   */
-  const formatMillis = (millis: number) => {
-    const minutes = Math.floor(millis / (1000 * 60))
-    const seconds = Math.floor((millis % (1000 * 60)) / 1000)
-    return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`
-  }
+  const togglePlayback = useCallback(async () => {
+    try {
+      if (!soundRef.current) return;
+      if (isPlaying) {
+        await soundRef.current.pauseAsync();
+      } else {
+        if (position >= duration) {
+          await soundRef.current.setPositionAsync(0);
+        }
+        await soundRef.current.playAsync();
+      }
+    } catch (error) {
+      console.error('Error toggling playback:', error);
+    }
+  }, [isPlaying, position, duration]);
 
-  const isPlaying = status?.isLoaded ? status.isPlaying : false
-  const position = status?.isLoaded ? status.positionMillis : 0
-  const duration = status?.isLoaded ? status.durationMillis : 1
+  const formatMillis = useCallback((millis: number) => {
+    const minutes = Math.floor(millis / (1000 * 60));
+    const seconds = Math.floor((millis % (1000 * 60)) / 1000);
+    return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+  }, []);
 
-  const progress = position / (duration ?? 1)
-
-  /**
-   * Animated style for the playback blue dot indicator
-   */
-  const animatedIndicatorStyle = useAnimatedStyle(() => ({
-    left: `${progress * 100}%`,
-    // withTiming(`${progress * 100}%`, {
-    //   duration:
-    //     (status?.isLoaded && status.progressUpdateIntervalMillis) || 100,
-    // }),
-  }))
-
-  // Compress or expand the audio waveform to fit the playback duration
-  let numLines = 50
-  let lines = []
-
-  for (let i = 0; i < numLines; i++) {
-    const meteringIndex = Math.floor((i * memo.metering.length) / numLines)
-    const nextMeteringIndex = Math.ceil(
-      ((i + 1) * memo.metering.length) / numLines
+  const progress = duration > 0 ? position / duration : 0;
+  const numLines = 50;
+  const lines = memo.metering
+    .reduce<number[][]>(
+      (acc, curr, i) => {
+        const index = Math.floor((i * numLines) / memo.metering.length);
+        if (!acc[index]) acc[index] = [];
+        acc[index].push(curr);
+        return acc;
+      },
+      Array(numLines)
+        .fill(null)
+        .map(() => [])
     )
-    const values = memo.metering.slice(meteringIndex, nextMeteringIndex)
-    const average = values.reduce((sum, a) => sum + a, 0) / values.length
-    // lines.push(memo.metering[meteringIndex]);
-    lines.push(average)
-  }
+    .map((group) => group.reduce((sum, val) => sum + val, 0) / group.length);
 
-  // Fix the wave line height NaN issue
-  const waveLineHeight = (db: number) => {
-    const height = interpolate(
-      db,
-      [-60, 0],
-      [5, 50],
-      Extrapolation.CLAMP
-    )
-    return isNaN(height) ? 5 : height
-  }
+  const waveLineHeight = useCallback((db: number) => {
+    const height = interpolate(db, [-60, 0], [5, 50], Extrapolation.CLAMP);
+    return isNaN(height) ? 5 : height;
+  }, []);
 
-  const isValidLine = (db: any) => typeof db === 'number' && !isNaN(db)
+  const isValidLine = useCallback(
+    (db: unknown): db is number => typeof db === 'number' && !isNaN(db),
+    []
+  );
 
   return (
     <View style={styles.container}>
-      <View style={[styles.audioSection, { borderBottomWidth: memo?.transcript ? StyleSheet.hairlineWidth : 0 }]}>
+      <View
+        style={[
+          styles.audioSection,
+          {
+            borderBottomWidth: memo?.transcript ? StyleSheet.hairlineWidth : 0,
+          },
+        ]}
+      >
         <FontAwesome5
-          onPress={playSound}
+          onPress={togglePlayback}
           name={isPlaying ? 'pause' : 'play'}
           size={20}
           color={'gray'}
         />
-
         <View style={styles.playbackContainer}>
           <View style={styles.wave}>
             {lines.map((db, index) => (
@@ -153,31 +150,46 @@ const MemoItem = ({ memo }: { memo: Memo }) => {
                   {
                     height: isValidLine(db) ? waveLineHeight(db) : 5,
                     backgroundColor:
-                      progress > index / lines.length ? 'royalblue' : 'gainsboro',
+                      progress > index / lines.length
+                        ? 'royalblue'
+                        : 'gainsboro',
                   },
                 ]}
               />
             ))}
           </View>
-
           <Text style={styles.duration}>
-            {formatMillis(position || 0)} / {formatMillis(duration || 0)}
+            {formatMillis(position)} / {formatMillis(duration)}
           </Text>
         </View>
       </View>
 
       {memo.transcript && (
-        <View style={styles.transcriptContainer}>
-          <View style={styles.transcriptHeader}>
-            <FontAwesome5 name="file-alt" size={14} color="gray" />
-            <Text style={styles.transcriptTitle}>Transcript</Text>
-          </View>
-          <Text style={styles.transcriptText}>{memo.transcript}</Text>
+        <View>
+          <Pressable
+            onPress={() => {
+              setShowTranscript(!showTranscript);
+            }}
+            style={styles.toggleTranscriptButton}
+          >
+            <Text style={styles.toggleTranscriptText}>
+              {showTranscript ? 'Hide Transcript' : 'Show Transcript'}
+            </Text>
+          </Pressable>
+          {showTranscript && (
+            <View style={styles.transcriptContainer}>
+              <View style={styles.transcriptHeader}>
+                <FontAwesome5 name="file-alt" size={14} color="gray" />
+                <Text style={styles.transcriptTitle}>Transcript</Text>
+              </View>
+              <Text style={styles.transcriptText}>{memo.transcript}</Text>
+            </View>
+          )}
         </View>
       )}
     </View>
-  )
-}
+  );
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -225,6 +237,19 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter',
     fontSize: 12,
   },
+  toggleTranscriptButton: {
+    backgroundColor: '#E5E5E5',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    alignSelf: 'flex-start',
+    margin: 10,
+    borderRadius: 4,
+  },
+  toggleTranscriptText: {
+    fontSize: 14,
+    color: '#333',
+    fontFamily: 'Inter',
+  },
   transcriptContainer: {
     padding: 15,
     backgroundColor: '#F8F9FA',
@@ -245,8 +270,7 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     color: '#2C3E50',
     fontFamily: 'Inter',
-    
   },
-})
+});
 
-export default MemoItem
+export default MemoItem;

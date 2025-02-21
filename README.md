@@ -8,7 +8,6 @@ Audio Recorder App is a React Native application built using Expo. This app allo
     <img src="https://github.com/leeyyl/AudioRecorder/blob/main/demo.gif" />
 </div>
 
-
 ## Features
 
 • Record audio with a start/pause/resume functionality
@@ -27,21 +26,20 @@ Make sure you have the following installed:
 ### Installation
 
 1. Clone the repository:
-git clone https://github.com/leeyyl/AudioRecorder.git
-cd AudioRecorder
+   git clone https://github.com/leeyyl/AudioRecorder.git
+   cd AudioRecorder
 
 2. Install dependencies:
-npm install
-or
-yarn install
-
+   npm install
+   or
+   yarn install
 
 How to Run the App
 
 1. Start the Expo development server:
-    npm start
-    or
-    yarn start
+   npm start
+   or
+   yarn start
 2. Install the Expo Go app on your iOS or Android device, if you haven’t already, from the App Store (iOS) or Google Play Store (Android).
 3. Scan the QR code displayed in your terminal or browser using the Expo Go app to open the app on your device.
 
@@ -74,13 +72,13 @@ In development, this is handled automatically by Expo. However, for production, 
 
 Here’s a brief overview of the main components used in the app:
 
-* Record Component - ***Memo.tsx***
-* Playback Component - ***MemoItem.tsx***
+- Record Component - **_Memo.tsx_**
+- Playback Component - **_MemoItem.tsx_**
 
 ## Note
 
-* The app was developed and tested using the Expo SDK. If you plan to eject from Expo, additional configuration may be required.
-* Ensure your device has sufficient storage and proper microphone functioning capability to avoid any interruptions.
+- The app was developed and tested using the Expo SDK. If you plan to eject from Expo, additional configuration may be required.
+- Ensure your device has sufficient storage and proper microphone functioning capability to avoid any interruptions.
 
 ## Contribution
 
