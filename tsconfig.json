@@ -2,7 +2,12 @@
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
     "strict": true,
-    "strictNullChecks": true
+    "strictNullChecks": true,
+     //  Path Alias
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    }
   },
-  "include": ["**/*.ts", "**/*.tsx", "env.d.ts"]
+  "include": ["**/*.ts", "**/*.tsx", "env.d.ts", "app/(auth)/sign-up", "app/(auth)/sign-in"]
 }
