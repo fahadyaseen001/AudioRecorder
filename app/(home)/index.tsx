@@ -1,20 +1,20 @@
 import { SignedIn, SignedOut } from '@clerk/clerk-expo';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, Redirect } from 'expo-router';
 import React from 'react';
-import { 
-  Text, 
-  View, 
-  StyleSheet, 
-  TouchableOpacity, 
-  SafeAreaView, 
-  StatusBar
+import {
+  Text,
+  View,
+  StyleSheet,
+  TouchableOpacity,
+  SafeAreaView,
+  StatusBar,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 
 export default function Page() {
   const router = useRouter();
-  
+
   // When signed in, redirect to dashboard
   return (
     <>
@@ -26,15 +26,23 @@ export default function Page() {
           <StatusBar barStyle="dark-content" backgroundColor="#fff" />
           <View style={styles.authContainer}>
             <View style={styles.logoContainer}>
-              <MaterialCommunityIcons name="waveform" size={64} color="#5352ed" />
+              <MaterialCommunityIcons
+                name="waveform"
+                size={64}
+                color="#5352ed"
+              />
               <Text style={styles.logoText}>AudioRecorder</Text>
-              <Text style={styles.tagline}>Professional voice recording studio in your pocket</Text>
+              <Text style={styles.tagline}>
+                Professional voice recording studio in your pocket
+              </Text>
             </View>
 
             <View style={styles.authButtons}>
-              <TouchableOpacity 
-                style={styles.signInButton} 
-                onPress={() => router.push('/(auth)/sign-in')}
+              <TouchableOpacity
+                style={styles.signInButton}
+                onPress={() => {
+                  router.push('/(auth)/sign-in');
+                }}
                 activeOpacity={0.8}
               >
                 <LinearGradient
@@ -47,9 +55,11 @@ export default function Page() {
                 </LinearGradient>
               </TouchableOpacity>
 
-              <TouchableOpacity 
-                style={styles.signUpButton} 
-                onPress={() => router.push('/(auth)/sign-up')}
+              <TouchableOpacity
+                style={styles.signUpButton}
+                onPress={() => {
+                  router.push('/(auth)/sign-up');
+                }}
                 activeOpacity={0.8}
               >
                 <Text style={styles.signUpButtonText}>Create an Account</Text>
@@ -58,33 +68,41 @@ export default function Page() {
 
             <View style={styles.features}>
               <Text style={styles.featuresTitle}>Why AudioRecorder?</Text>
-              
+
               <View style={styles.featureItem}>
                 <View style={styles.featureIcon}>
                   <Ionicons name="checkmark-circle" size={22} color="#5352ed" />
                 </View>
-                <Text style={styles.featureText}>High-quality 48kHz audio recording</Text>
+                <Text style={styles.featureText}>
+                  High-quality 48kHz audio recording
+                </Text>
               </View>
-              
+
               <View style={styles.featureItem}>
                 <View style={styles.featureIcon}>
                   <Ionicons name="checkmark-circle" size={22} color="#5352ed" />
                 </View>
-                <Text style={styles.featureText}>Cloud syncing across all your devices</Text>
+                <Text style={styles.featureText}>
+                  Cloud syncing across all your devices
+                </Text>
               </View>
-              
+
               <View style={styles.featureItem}>
                 <View style={styles.featureIcon}>
                   <Ionicons name="checkmark-circle" size={22} color="#5352ed" />
                 </View>
-                <Text style={styles.featureText}>AI-powered transcription technology</Text>
+                <Text style={styles.featureText}>
+                  AI-powered transcription technology
+                </Text>
               </View>
-              
+
               <View style={styles.featureItem}>
                 <View style={styles.featureIcon}>
                   <Ionicons name="checkmark-circle" size={22} color="#5352ed" />
                 </View>
-                <Text style={styles.featureText}>Secure end-to-end encryption</Text>
+                <Text style={styles.featureText}>
+                  Secure end-to-end encryption
+                </Text>
               </View>
             </View>
           </View>

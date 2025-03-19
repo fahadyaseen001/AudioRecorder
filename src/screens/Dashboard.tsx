@@ -1,34 +1,39 @@
+import { PutObjectCommand } from '@aws-sdk/client-s3';
+import { useUser, useClerk } from '@clerk/clerk-expo';
 import { HUGGING_FACE_API_KEY } from '@env';
+import {
+  Ionicons,
+  MaterialCommunityIcons,
+  FontAwesome5,
+} from '@expo/vector-icons';
 import { Audio } from 'expo-av';
 import { Recording } from 'expo-av/build/Audio';
-import { useCallback, useState, useEffect } from 'react';
-import { 
-  View, 
-  StyleSheet, 
-  Text, 
-  TouchableOpacity, 
-  SafeAreaView, 
+import { useRouter } from 'expo-router';
+import { useCallback, useState } from 'react';
+import {
+  View,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  SafeAreaView,
   StatusBar,
   ScrollView,
   FlatList,
   Pressable,
   Alert,
-  Image
+  Image,
 } from 'react-native';
-import { useUser, useClerk } from '@clerk/clerk-expo';
-import { useRouter } from 'expo-router';
 import Animated, {
   interpolate,
   useAnimatedStyle,
   useSharedValue,
   withTiming,
-  Extrapolation
+  Extrapolation,
 } from 'react-native-reanimated';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons, MaterialCommunityIcons, FontAwesome5 } from '@expo/vector-icons';
 
 import Loader from '../components/Loader';
 import MemoItem, { Memo } from '../components/MemoItem';
+import { s3Client, BUCKET_NAME } from '../config/aws';
 
 type MemoWithTranscript = Memo & { transcript?: string };
 
@@ -36,14 +41,15 @@ export default function DashboardScreen() {
   const { user } = useUser();
   const { signOut } = useClerk();
   const router = useRouter();
-  
+
   // Recording state from Memos.tsx
   const [recording, setRecording] = useState<Recording>();
   const [audioMetering, setAudioMetering] = useState<number[]>([]);
   const metering = useSharedValue(-100);
   const [memos, setMemos] = useState<MemoWithTranscript[]>([]);
   const [isTranscribing, setIsTranscribing] = useState(false);
-  const [isRecording, setIsRecording] = useState(false);
+  const [, setIsRecording] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
 
   const transcribeAudio = useCallback(async (audioData: Blob) => {
     const apiKey = HUGGING_FACE_API_KEY;
@@ -69,6 +75,36 @@ export default function DashboardScreen() {
     }
   }, []);
 
+  const uploadToS3 = useCallback(
+    async (uri: string, filename: string) => {
+      try {
+        setIsUploading(true);
+
+        const response = await fetch(uri);
+        const blob = await response.blob();
+
+        const key = `recordings/${user?.id}/${filename}`;
+
+        const uploadParams = {
+          Bucket: BUCKET_NAME,
+          Key: key,
+          Body: blob,
+          ContentType: 'audio/wav',
+        };
+
+        await s3Client.send(new PutObjectCommand(uploadParams));
+
+        return `https://${BUCKET_NAME}.s3.amazonaws.com/${key}`;
+      } catch (error) {
+        console.error('Error uploading to S3:', error);
+        throw error;
+      } finally {
+        setIsUploading(false);
+      }
+    },
+    [user?.id]
+  );
+
   const startRecording = useCallback(async () => {
     try {
       setAudioMetering([]);
@@ -77,7 +113,7 @@ export default function DashboardScreen() {
       await Audio.setAudioModeAsync({
         allowsRecordingIOS: true,
         playsInSilentModeIOS: true,
-        staysActiveInBackground: true, 
+        staysActiveInBackground: true,
         playThroughEarpieceAndroid: false,
       });
 
@@ -116,19 +152,31 @@ export default function DashboardScreen() {
       setIsTranscribing(true);
       try {
         const audioBlob = await fetch(uri).then((response) => response.blob());
+
+        const filename = `recording-${Date.now()}.wav`;
+
         const transcript = await transcribeAudio(audioBlob);
 
+        const s3Uri = await uploadToS3(uri, filename);
+
         setMemos((existingMemos) => [
-          { uri, metering: audioMetering, transcript },
+          {
+            uri,
+            s3Uri,
+            metering: audioMetering,
+            transcript,
+            timestamp: new Date().toISOString(),
+          },
           ...existingMemos,
         ]);
       } catch (error) {
-        Alert.alert('Error', 'Failed to transcribe audio. Please try again.');
+        console.error('Error processing recording:', error);
+        Alert.alert('Error', 'Failed to process audio. Please try again.');
       } finally {
         setIsTranscribing(false);
       }
     }
-  }, [recording, audioMetering, metering, transcribeAudio]);
+  }, [recording, audioMetering, metering, transcribeAudio, uploadToS3]);
 
   /**
    * Red circle animation from Memos.tsx
@@ -143,7 +191,12 @@ export default function DashboardScreen() {
    */
   const animatedRecording = useAnimatedStyle(() => {
     const size = withTiming(
-      interpolate(metering.value, [-160, -60, 0], [0, 0, -30], Extrapolation.CLAMP),
+      interpolate(
+        metering.value,
+        [-160, -60, 0],
+        [0, 0, -30],
+        Extrapolation.CLAMP
+      ),
       { duration: 100 }
     );
     return {
@@ -165,7 +218,10 @@ export default function DashboardScreen() {
     <View style={styles.header}>
       <View>
         <Text style={styles.welcomeText}>Hello,</Text>
-        <Text style={styles.userName}>{user?.firstName || user?.emailAddresses[0].emailAddress.split('@')[0]}</Text>
+        <Text style={styles.userName}>
+          {user?.firstName ??
+            user?.emailAddresses[0].emailAddress.split('@')[0]}
+        </Text>
       </View>
       <TouchableOpacity style={styles.profileButton}>
         {user?.imageUrl ? (
@@ -173,7 +229,8 @@ export default function DashboardScreen() {
         ) : (
           <View style={styles.profilePlaceholder}>
             <Text style={styles.profilePlaceholderText}>
-              {user?.firstName?.charAt(0) || user?.emailAddresses[0].emailAddress.charAt(0).toUpperCase()}
+              {user?.firstName?.charAt(0) ??
+                user?.emailAddresses[0].emailAddress.charAt(0).toUpperCase()}
             </Text>
           </View>
         )}
@@ -187,34 +244,58 @@ export default function DashboardScreen() {
         <Text style={styles.sectionTitle}>Quick Actions</Text>
         <View style={styles.quickActionsGrid}>
           <TouchableOpacity style={styles.quickActionItem}>
-            <View style={[styles.quickActionIcon, { backgroundColor: 'rgba(83, 82, 237, 0.1)' }]}>
+            <View
+              style={[
+                styles.quickActionIcon,
+                { backgroundColor: 'rgba(83, 82, 237, 0.1)' },
+              ]}
+            >
               <FontAwesome5 name="folder" size={18} color="#5352ed" />
             </View>
             <Text style={styles.quickActionText}>My Files</Text>
           </TouchableOpacity>
-          
+
           <TouchableOpacity style={styles.quickActionItem}>
-            <View style={[styles.quickActionIcon, { backgroundColor: 'rgba(46, 204, 113, 0.1)' }]}>
-              <MaterialCommunityIcons name="transcribe" size={20} color="#2ecc71" />
+            <View
+              style={[
+                styles.quickActionIcon,
+                { backgroundColor: 'rgba(46, 204, 113, 0.1)' },
+              ]}
+            >
+              <MaterialCommunityIcons
+                name="transcribe"
+                size={20}
+                color="#2ecc71"
+              />
             </View>
             <Text style={styles.quickActionText}>Transcribe</Text>
           </TouchableOpacity>
-          
+
           <TouchableOpacity style={styles.quickActionItem}>
-            <View style={[styles.quickActionIcon, { backgroundColor: 'rgba(255, 71, 87, 0.1)' }]}>
+            <View
+              style={[
+                styles.quickActionIcon,
+                { backgroundColor: 'rgba(255, 71, 87, 0.1)' },
+              ]}
+            >
               <Ionicons name="share-outline" size={20} color="#ff4757" />
             </View>
             <Text style={styles.quickActionText}>Share</Text>
           </TouchableOpacity>
-          
-          <TouchableOpacity 
+
+          <TouchableOpacity
             style={styles.quickActionItem}
             onPress={async () => {
               await signOut();
               router.replace('/(home)');
             }}
           >
-            <View style={[styles.quickActionIcon, { backgroundColor: 'rgba(231, 76, 60, 0.1)' }]}>
+            <View
+              style={[
+                styles.quickActionIcon,
+                { backgroundColor: 'rgba(231, 76, 60, 0.1)' },
+              ]}
+            >
               <Ionicons name="log-out-outline" size={20} color="#e74c3c" />
             </View>
             <Text style={styles.quickActionText}>Sign Out</Text>
@@ -255,14 +336,17 @@ export default function DashboardScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
-      {isTranscribing && <Loader />}
-      
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+      {(isTranscribing ?? isUploading) && <Loader />}
+
+      <ScrollView
+        style={styles.scrollView}
+        showsVerticalScrollIndicator={false}
+      >
         <Header />
         <QuickActions />
         <RecordingsDisplay />
       </ScrollView>
-      
+
       {/* Recording button from Memos.tsx */}
       <View style={styles.memosFooter}>
         <View>
@@ -426,7 +510,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'orangered',
     aspectRatio: 1,
   },
-  // Recording wave animation from Memos.tsx
   recordWave: {
     position: 'absolute',
     top: -20,
@@ -435,9 +518,8 @@ const styles = StyleSheet.create({
     right: -20,
     borderRadius: 1000,
   },
-  // Transparent view to handle recording UI
   transparentOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'transparent',
   },
-}); 
+});

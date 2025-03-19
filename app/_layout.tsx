@@ -3,7 +3,6 @@ import { EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY } from '@env';
 import { tokenCache } from 'cache';
 import { Slot } from 'expo-router';
 
-
 export default function RootLayout() {
   const publishableKey = EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
 

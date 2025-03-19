@@ -1,20 +1,20 @@
 import { useSignIn } from '@clerk/clerk-expo';
+import { Ionicons } from '@expo/vector-icons';
 import { Link, useRouter } from 'expo-router';
 import React from 'react';
-import { 
-  Text, 
-  TextInput, 
-  TouchableOpacity, 
-  View, 
-  StyleSheet, 
-  ActivityIndicator, 
-  Alert, 
-  KeyboardAvoidingView, 
+import {
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+  StyleSheet,
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
   Platform,
   Image,
-  ScrollView 
+  ScrollView,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 
 export default function Page() {
   const { signIn, setActive, isLoaded } = useSignIn();
@@ -31,17 +31,17 @@ export default function Page() {
 
     // Validate input
     if (!emailAddress.trim()) {
-      Alert.alert("Error", "Please enter your email address");
+      Alert.alert('Error', 'Please enter your email address');
       return;
     }
-    
+
     if (!password.trim()) {
-      Alert.alert("Error", "Please enter your password");
+      Alert.alert('Error', 'Please enter your password');
       return;
     }
 
     setLoading(true);
-    
+
     // Start the sign-in process using the email and password provided
     try {
       const signInAttempt = await signIn.create({
@@ -56,25 +56,32 @@ export default function Page() {
         router.replace('/(dashboard)');
       } else {
         // Handle incomplete sign-in attempts
-        console.log("Incomplete sign-in:", JSON.stringify(signInAttempt, null, 2));
-        Alert.alert("Sign In Error", "Unable to complete sign in. Please check your credentials and try again.");
+        console.log(
+          'Incomplete sign-in:',
+          JSON.stringify(signInAttempt, null, 2)
+        );
+        Alert.alert(
+          'Sign In Error',
+          'Unable to complete sign in. Please check your credentials and try again.'
+        );
       }
     } catch (err: any) {
-      let errorMessage = "Failed to sign in. Please try again.";
-      
+      let errorMessage = 'Failed to sign in. Please try again.';
+
       if (err.errors && err.errors.length > 0) {
         const error = err.errors[0];
-        
+
         if (error.code === 'form_identifier_not_found') {
-          errorMessage = "We couldn't find an account with that email. Please check your email or sign up.";
+          errorMessage =
+            "We couldn't find an account with that email. Please check your email or sign up.";
         } else if (error.code === 'form_password_incorrect') {
-          errorMessage = "Incorrect password. Please try again.";
+          errorMessage = 'Incorrect password. Please try again.';
         } else {
           errorMessage = error.message || errorMessage;
         }
       }
-      
-      Alert.alert("Error", errorMessage);
+
+      Alert.alert('Error', errorMessage);
       console.error(JSON.stringify(err, null, 2));
     } finally {
       setLoading(false);
@@ -82,19 +89,21 @@ export default function Page() {
   };
 
   return (
-    <KeyboardAvoidingView 
+    <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
     >
       <TouchableOpacity
         style={styles.backButtonAbsolute}
-        onPress={() => router.push('/')}
+        onPress={() => {
+          router.push('/');
+        }}
       >
         <Ionicons name="arrow-back" size={24} color="#4f46e5" />
       </TouchableOpacity>
-      
-      <ScrollView 
+
+      <ScrollView
         contentContainerStyle={styles.scrollContainer}
         keyboardShouldPersistTaps="handled"
       >
@@ -111,7 +120,7 @@ export default function Page() {
               onChangeText={setEmailAddress}
             />
           </View>
-          
+
           <View style={styles.formGroup}>
             <Text style={styles.label}>Password</Text>
             <View style={styles.passwordContainer}>
@@ -122,21 +131,23 @@ export default function Page() {
                 secureTextEntry={!showPassword}
                 onChangeText={setPassword}
               />
-              <TouchableOpacity 
-                style={styles.visibilityIcon} 
-                onPress={() => setShowPassword(!showPassword)}
+              <TouchableOpacity
+                style={styles.visibilityIcon}
+                onPress={() => {
+                  setShowPassword(!showPassword);
+                }}
               >
-                <Ionicons 
-                  name={showPassword ? "eye" : "eye-off"} 
-                  size={24} 
-                  color="#6b7280" 
+                <Ionicons
+                  name={showPassword ? 'eye' : 'eye-off'}
+                  size={24}
+                  color="#6b7280"
                 />
               </TouchableOpacity>
             </View>
           </View>
 
-          <TouchableOpacity 
-            style={styles.button} 
+          <TouchableOpacity
+            style={styles.button}
             onPress={onSignInPress}
             disabled={loading}
           >
@@ -156,11 +167,11 @@ export default function Page() {
             </Link>
           </View>
         </View>
-        
+
         <View style={styles.clerkBadgeContainer}>
           <Text style={styles.securedByText}>Secured by</Text>
-          <Image 
-            source={require('../../../assets/clerk.png')}  
+          <Image
+            source={require('../../../assets/clerk.png')}
             style={styles.clerkLogo}
             resizeMode="contain"
           />

@@ -1,23 +1,23 @@
 import { useSignUp } from '@clerk/clerk-expo';
+import { Ionicons } from '@expo/vector-icons';
 import { Link, useRouter } from 'expo-router';
 import * as React from 'react';
-import { 
-  Text, 
-  TextInput, 
-  TouchableOpacity, 
-  View, 
-  StyleSheet, 
-  ActivityIndicator, 
+import {
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+  StyleSheet,
+  ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
   Platform,
   Image,
-  ScrollView 
+  ScrollView,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 
 export default function SignUpScreen() {
-  const { isLoaded, signUp, setActive } = useSignUp();
+  const { isLoaded, signUp } = useSignUp();
   const router = useRouter();
 
   const [emailAddress, setEmailAddress] = React.useState('');
@@ -34,17 +34,17 @@ export default function SignUpScreen() {
 
     // Validate input
     if (!emailAddress.trim()) {
-      Alert.alert("Error", "Please enter your email address");
+      Alert.alert('Error', 'Please enter your email address');
       return;
     }
-    
+
     if (!username.trim()) {
-      Alert.alert("Error", "Please enter a username");
+      Alert.alert('Error', 'Please enter a username');
       return;
     }
 
     if (!password.trim() || password.length < 8) {
-      Alert.alert("Error", "Please enter a password (minimum 8 characters)");
+      Alert.alert('Error', 'Please enter a password (minimum 8 characters)');
       return;
     }
 
@@ -65,7 +65,10 @@ export default function SignUpScreen() {
       // and capture OTP code
       setPendingVerification(true);
     } catch (err: any) {
-      Alert.alert("Error", err.errors?.[0]?.message || "Failed to sign up. Please try again.");
+      Alert.alert(
+        'Error',
+        err.errors?.[0]?.message || 'Failed to sign up. Please try again.'
+      );
       console.error(JSON.stringify(err, null, 2));
     } finally {
       setLoading(false);
@@ -77,7 +80,7 @@ export default function SignUpScreen() {
     if (!isLoaded || loading) return;
 
     if (!code.trim()) {
-      Alert.alert("Error", "Please enter the verification code");
+      Alert.alert('Error', 'Please enter the verification code');
       return;
     }
 
@@ -92,29 +95,43 @@ export default function SignUpScreen() {
       // If verification was completed, redirect to sign-in
       if (signUpAttempt.status === 'complete') {
         Alert.alert(
-          "Verification Complete", 
-          "Your account has been verified successfully. Please sign in.",
+          'Verification Complete',
+          'Your account has been verified successfully. Please sign in.',
           [
-            { 
-              text: "Sign In", 
-              onPress: () => router.replace('/(auth)/sign-in')
-            }
+            {
+              text: 'Sign In',
+              onPress: () => {
+                router.replace('/(auth)/sign-in');
+              },
+            },
           ]
         );
       } else if (signUpAttempt.status === 'missing_requirements') {
         // Check if username is missing
         if (signUpAttempt.missingFields.includes('username')) {
-          Alert.alert("Username Required", "Please choose a username to complete signup");
+          Alert.alert(
+            'Username Required',
+            'Please choose a username to complete signup'
+          );
         } else {
           // Handle other missing requirements
-          Alert.alert("Missing Information", "Please provide all required information to complete signup");
+          Alert.alert(
+            'Missing Information',
+            'Please provide all required information to complete signup'
+          );
         }
       } else {
         // Handle other statuses
-        Alert.alert("Verification Incomplete", "Verification is incomplete. Please try again.");
+        Alert.alert(
+          'Verification Incomplete',
+          'Verification is incomplete. Please try again.'
+        );
       }
     } catch (err: any) {
-      Alert.alert("Error", err.errors?.[0]?.message || "Failed to verify email. Please try again.");
+      Alert.alert(
+        'Error',
+        err.errors?.[0]?.message || 'Failed to verify email. Please try again.'
+      );
       console.error(JSON.stringify(err, null, 2));
     } finally {
       setLoading(false);
@@ -124,8 +141,8 @@ export default function SignUpScreen() {
   const ClerkBadge = () => (
     <View style={styles.clerkBadgeContainer}>
       <Text style={styles.securedByText}>Secured by</Text>
-      <Image 
-        source={require('../../../assets/clerk.png')} 
+      <Image
+        source={require('../../../assets/clerk.png')}
         style={styles.clerkLogo}
         resizeMode="contain"
       />
@@ -134,26 +151,30 @@ export default function SignUpScreen() {
 
   if (pendingVerification) {
     return (
-      <KeyboardAvoidingView 
+      <KeyboardAvoidingView
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
       >
         <TouchableOpacity
           style={styles.backButtonAbsolute}
-          onPress={() => setPendingVerification(false)}
+          onPress={() => {
+            setPendingVerification(false);
+          }}
         >
           <Ionicons name="arrow-back" size={24} color="#4f46e5" />
         </TouchableOpacity>
-        
-        <ScrollView 
+
+        <ScrollView
           contentContainerStyle={styles.scrollContainer}
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.card}>
             <Text style={styles.title}>Verify your email</Text>
-            <Text style={styles.subtitle}>We've sent a verification code to {emailAddress}</Text>
-            
+            <Text style={styles.subtitle}>
+              We've sent a verification code to {emailAddress}
+            </Text>
+
             <View style={styles.formGroup}>
               <Text style={styles.label}>Verification Code</Text>
               <TextInput
@@ -164,9 +185,9 @@ export default function SignUpScreen() {
                 onChangeText={setCode}
               />
             </View>
-            
-            <TouchableOpacity 
-              style={styles.button} 
+
+            <TouchableOpacity
+              style={styles.button}
               onPress={onVerifyPress}
               disabled={loading}
             >
@@ -177,14 +198,16 @@ export default function SignUpScreen() {
               )}
             </TouchableOpacity>
 
-            <TouchableOpacity 
-              style={styles.secondaryButton} 
-              onPress={() => setPendingVerification(false)}
+            <TouchableOpacity
+              style={styles.secondaryButton}
+              onPress={() => {
+                setPendingVerification(false);
+              }}
             >
               <Text style={styles.secondaryButtonText}>Back to sign up</Text>
             </TouchableOpacity>
           </View>
-          
+
           <ClerkBadge />
         </ScrollView>
       </KeyboardAvoidingView>
@@ -192,25 +215,27 @@ export default function SignUpScreen() {
   }
 
   return (
-    <KeyboardAvoidingView 
+    <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
     >
       <TouchableOpacity
         style={styles.backButtonAbsolute}
-        onPress={() => router.push('/')}
+        onPress={() => {
+          router.push('/');
+        }}
       >
         <Ionicons name="arrow-back" size={24} color="#4f46e5" />
       </TouchableOpacity>
-      
-      <ScrollView 
+
+      <ScrollView
         contentContainerStyle={styles.scrollContainer}
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.card}>
           <Text style={styles.title}>Create your account</Text>
-          
+
           <View style={styles.formGroup}>
             <Text style={styles.label}>Email</Text>
             <TextInput
@@ -222,7 +247,7 @@ export default function SignUpScreen() {
               onChangeText={setEmailAddress}
             />
           </View>
-          
+
           <View style={styles.formGroup}>
             <Text style={styles.label}>Username</Text>
             <TextInput
@@ -233,7 +258,7 @@ export default function SignUpScreen() {
               onChangeText={setUsername}
             />
           </View>
-          
+
           <View style={styles.formGroup}>
             <Text style={styles.label}>Password</Text>
             <View style={styles.passwordContainer}>
@@ -244,22 +269,24 @@ export default function SignUpScreen() {
                 secureTextEntry={!showPassword}
                 onChangeText={setPassword}
               />
-              <TouchableOpacity 
-                style={styles.visibilityIcon} 
-                onPress={() => setShowPassword(!showPassword)}
+              <TouchableOpacity
+                style={styles.visibilityIcon}
+                onPress={() => {
+                  setShowPassword(!showPassword);
+                }}
               >
-                <Ionicons 
-                  name={showPassword ? "eye" : "eye-off"} 
-                  size={24} 
-                  color="#6b7280" 
+                <Ionicons
+                  name={showPassword ? 'eye' : 'eye-off'}
+                  size={24}
+                  color="#6b7280"
                 />
               </TouchableOpacity>
             </View>
             <Text style={styles.hintText}>Must be at least 8 characters</Text>
           </View>
 
-          <TouchableOpacity 
-            style={styles.button} 
+          <TouchableOpacity
+            style={styles.button}
             onPress={onSignUpPress}
             disabled={loading}
           >
@@ -279,7 +306,7 @@ export default function SignUpScreen() {
             </Link>
           </View>
         </View>
-        
+
         <ClerkBadge />
       </ScrollView>
     </KeyboardAvoidingView>

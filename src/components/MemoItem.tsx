@@ -7,8 +7,10 @@ import { interpolate, Extrapolation } from 'react-native-reanimated';
 
 export type Memo = {
   uri: string;
+  s3Uri?: string;
   metering: number[];
   transcript?: string;
+  timestamp?: string;
 };
 
 const MemoItem = ({ memo }: { memo: Memo }) => {
